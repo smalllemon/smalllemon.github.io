@@ -1,0 +1,150 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>Buffer | 生活不仅有代码，还有咖啡。</title><link rel="stylesheet" type="text/css" href="//fonts.neworld.org/css?family=Source+Code+Pro"><link rel="stylesheet" type="text/css" href="/css/style.css?v=2.0.1"><link rel="stylesheet" type="text/css" href="/css/highlight.css?v=2.0.1"><link rel="Shortcut Icon" href="/favicon.ico"><link rel="bookmark" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">Buffer</h1><a id="logo" href="/.">生活不仅有代码，还有咖啡。</a><p class="description">不如自己去找风！</p></div><div id="nav-menu"><a href="/." class="current"><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div><div id="search-form"><div id="result-mask" class="hide"></div><label><input id="search-key" type="text" autocomplete="off" placeholder="Arama"></label><div id="result-wrap" class="hide"><div id="search-result"></div></div><div class="hide"><template id="search-tpl"><div class="item"><a href="/{path}" title="{title}"><div class="title">{title}</div><div class="time">{date}</div><div class="tags">{tags}</div></a></div></template></div></div></div><div id="layout" class="layout-g"><div class="layout-l"><div class="content_container"><div class="post"><h1 class="post-title">Buffer</h1><div class="post-meta"><a href="/2018/07/08/Buffer/#comments" class="comment-count"></a><p><span class="date">Jul 08, 2018</span><span><a href="/categories/Node/" class="category">Node</a></span><span><i id="busuanzi_container_page_pv"><i id="busuanzi_value_page_pv"></i><i>点击</i></i></span></p></div><div class="post-content"><h3 id="理解Buffer"><a href="#理解Buffer" class="headerlink" title="理解Buffer"></a>理解Buffer</h3><pre><code>这篇博文的主题：1.理解Buffer
+
+                2.Buffer的结构
+
+1.Buffer结构
+
+  Buffer主要用来存储和操作一些字符。
+
+2.Buffer对象
+
+  Buffer对象类似于数组，它的元素为16进制的两位数.
+
+  //具体的Buffer存储实例
+
+  var  str = &quot;深入浅出node.js&quot; ;
+
+  var  buf = new Buffer(str,&apos;utf-8&apos;);
+
+  console.log(buf);
+
+
+  //获取Buffer实例的属性
+  var buf = new Buffer(100);
+  console.log(buf.length); //100
+
+
+  //获取具体的某一个buffer实例
+  console.log(buf[10]);
+
+3.Buffer内存分配
+
+  node采用的是slab分配机制。它采用的机制是动态内存管理机制。
+
+  它具有3种状态：
+
+   完全分配状态
+
+   部分分配状态
+
+   没有被分配状态
+
+
+   var  pool;
+
+    //empty
+    function allocPool(){
+          pool = new SlowBuffer(Buffer.poolSize);
+          pool.used = 0 ;
+    } 
+
+    if(!pool || pool.length-pool.used &lt; this.length){
+       allocPool();
+    }  
+
+    this.parent = pool;
+    this.offset = pool.used; 
+    pool.used     = this.length;
+    if(pool.used &amp; 7){
+        pool.used = (pool.used +8) &amp; -7
+    }
+
+4.Buffer的转换
+
+  (1).字符串转Buffer
+
+    new Buffer(str,[encoding]);  //encoding默认的编码类型是utf-8
+
+  (2).Buffer转字符串
+
+    buf.toString([encoding],[start],[end]);
+
+5.buffer的拼接
+
+    var fs = require(&quot;fs&quot;) ;
+
+    var fs = fs.createReadStream(&quot;test.md&quot;) ;
+
+    var data = &quot; &quot; ;
+
+    rs.on(&quot;data&quot;,function(chunk){ 
+
+      data + = chunk;
+
+    });
+
+    rs.on(&quot;end&quot;,function(){
+       console.log(data);
+    });
+
+
+    //正确的拼接方法
+
+    var chunks = [] ;
+
+    var size = 0 ;
+
+    rs.on(&quot;data&quot;,fucntion(chunk){
+        chunks.push(chunk) ;
+        size += chunk.length ; 
+    });
+
+    res.on(&quot;end&quot;,function(){
+        var buf = Buffer.concat(chunks,size) ;
+        var str = iconv.decode(buf,&quot;utf8&quot;);
+        console.log(str);
+    })
+
+    //buf的拼接过程是：首先把需要拼接的内容保存在一个Buffer片段中
+       然后调用Buf中的concat方法进行拼接
+
+     //具体的拼接实例代码：
+
+    Buffer.concat = function(list,length){
+        if(!Array.isArray(list)){
+            throw new Error(&quot;Usage: Buffer.concat(list,[length])&quot;)
+        }
+
+        if(list.length === 0){
+            return  new Buffer(0);
+        }else if(list.length === 1){
+            return  list[0];
+        }
+
+        if(typeof length !== &quot;number&quot;){
+            length = 0 ;
+            for(var i = 0 ; i &lt;list.length ; i++){
+                var buf = List[i];
+                length + = buf.length;
+            }
+
+        }
+
+        var  buf = new Buffer(length) ;
+
+        var  pos = 0 ;
+
+        for(var i = 0 ; i &lt; list.length ; i++ ){
+
+            var  buf = list[i] ;
+
+            buf.copy(buffer,pos) ;
+
+            pos + = buf.length
+
+        }
+
+        return buffer
+    }
+</code></pre></div><div class="tags"><a href="/tags/Node-js/">Node.js</a></div><div class="post-share"><div class="bdsharebuttonbox"><span style="float:left;line-height: 28px;height: 28px;font-size:16px;font-weight:blod">分享到：</span><a href="#" data-cmd="more" class="bds_more"></a><a href="#" data-cmd="mshare" title="分享到一键分享" class="bds_mshare"></a><a href="#" data-cmd="fbook" title="分享到Facebook" class="bds_fbook"></a><a href="#" data-cmd="twi" title="分享到Twitter" class="bds_twi"></a><a href="#" data-cmd="linkedin" title="分享到linkedin" class="bds_linkedin"></a><a href="#" data-cmd="youdao" title="分享到有道云笔记" class="bds_youdao"></a><a href="#" data-cmd="evernotecn" title="分享到印象笔记" class="bds_evernotecn"></a><a href="#" data-cmd="weixin" title="分享到微信" class="bds_weixin"></a><a href="#" data-cmd="qzone" title="分享到QQ空间" class="bds_qzone"></a><a href="#" data-cmd="tsina" title="分享到新浪微博" class="bds_tsina"></a></div></div><div class="post-nav"><a href="/2018/08/01/关于学习之法的学习/" class="pre">关于学习方法的学习</a><a href="/2018/07/07/模块机制/" class="next">模块机制</a></div><div id="comments"></div></div></div></div><div class="layout-r"><div id="sidebar"><div class="search-pla"></div><div id="toc" class="widget"><div class="widget-title"><i class="fa fa-fei">文章目录</i></div><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#理解Buffer"><span class="toc-text">理解Buffer</span></a></li></ol></div><div class="widget"><div class="widget-title"><i class="fa fa-xie"> 最新文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/03/08/规范细节/">规范细节</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/01/初识AngularJS/">初识AngularJs</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/08/01/关于学习之法的学习/">关于学习方法的学习</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/08/Buffer/">Buffer</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/07/模块机制/">模块机制</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/06/构建WEB应用/">构建WEB应用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/05/网络编程/">网络编程</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/异步编程/">异步编程</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/函数的扩展/">函数的扩展</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/构建VUE组件/">如何构建出色的VUE组件?</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-gui"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Angular/">Angular</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Hexo博客折腾/">Hexo博客折腾</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/JS高级程序设计/">JS高级程序设计</a><span class="category-list-count">11</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Node/">Node</a><span class="category-list-count">9</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/es6/">es6</a><span class="category-list-count">10</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端学习/">前端学习</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端工程化工具/">前端工程化工具</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端框架/">前端框架</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/后端/">后端</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据展示图表库/">数据展示图表库</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/编写高质量代码/">编写高质量代码</a><span class="category-list-count">1</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-biao"> 标签</i></div><div class="tagcloud"><a href="/tags/Node-js/" style="font-size: 15px;">Node.js</a> <a href="/tags/数据处理/" style="font-size: 15px;">数据处理</a> <a href="/tags/JS-在路上/" style="font-size: 15px;">JS,在路上</a> <a href="/tags/es6精粹/" style="font-size: 15px;">es6精粹</a> <a href="/tags/Vue之行/" style="font-size: 15px;">Vue之行</a> <a href="/tags/开启博客之旅/" style="font-size: 15px;">开启博客之旅</a> <a href="/tags/前端学习/" style="font-size: 15px;">前端学习</a> <a href="/tags/AngularJS实战/" style="font-size: 15px;">AngularJS实战</a> <a href="/tags/web开发修炼之道/" style="font-size: 15px;">web开发修炼之道</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-archive"> 归档</i></div><ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">三月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/10/">十月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">七月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">六月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">四月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/03/">三月 2018</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-you"> 友情链接</i></div><ul></ul><a href="http://www.example1.com/" title="site-name1" target="_blank">site-name1</a><ul></ul><a href="http://www.example2.com/" title="site-name2" target="_blank">site-name2</a><ul></ul><a href="http://www.example3.com/" title="site-name3" target="_blank">site-name3</a></div></div></div></div><a id="totop" href="#top"></a><div id="footer"><div class="footer-info"><p><a href="/baidusitemap.xml">Baidu Site Haritası</a> |  <a href="/atom.xml">订阅</a> |  <a href="/about/">关于</a></p><p>本站总访问量：<i id="busuanzi_container_site_pv"><i id="busuanzi_value_site_pv"></i></i>次</p><p><span> Copyright &copy;<a href="/." rel="nofollow">Daiyumeng.</a></span><span> Theme by<a rel="nofollow" target="_blank" href="https://github.com/chaooo/hexo-theme-BlueLake"> BlueLake.</a></span><span> Count by<a href="http://busuanzi.ibruce.info/"> busuanzi.</a></span><span> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a></span></p></div></div></div><script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><script type="text/javascript" src="/js/search.json.js?v=2.0.1"></script><script type="text/javascript" src="/js/toctotop.js?v=2.0.1" async></script><script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"2","bdMiniList":["mshare","weixin","tsina","qzone","linkedin","fbook","twi","print","renren","sqq","evernotecn","bdysc","tqq","tqf","bdxc","kaixin001","tieba","douban","bdhome","thx","ibaidu","meilishuo","mogujie","diandian","huaban","duitang","hx","fx","youdao","sdo","qingbiji","people","xinhua","mail","isohu","yaolan","wealink","ty","iguba","h163","copy"],"bdPic":"","bdStyle":"1","bdSize":"16"},"share":{},"image":{"viewList":["tsina","qzone","weixin","fbook","twi","linkedin","youdao","evernotecn","mshare"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["tsina","qzone","weixin","fbook","twi","linkedin","youdao","evernotecn","mshare"]}};with(document)0[(getElementsByTagName('head')[0]||head).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];
+</script></body></html>

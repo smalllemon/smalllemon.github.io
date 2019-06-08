@@ -1,0 +1,174 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description"><title>异步操作和async函数 | 生活不仅有代码，还有咖啡。</title><link rel="stylesheet" type="text/css" href="//fonts.neworld.org/css?family=Source+Code+Pro"><link rel="stylesheet" type="text/css" href="/css/style.css?v=2.0.1"><link rel="stylesheet" type="text/css" href="/css/highlight.css?v=2.0.1"><link rel="Shortcut Icon" href="/favicon.ico"><link rel="bookmark" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">异步操作和async函数</h1><a id="logo" href="/.">生活不仅有代码，还有咖啡。</a><p class="description">不如自己去找风！</p></div><div id="nav-menu"><a href="/." class="current"><i class="fa fa-home"> 首页</i></a><a href="/archives/"><i class="fa fa-archive"> 归档</i></a><a href="/about/"><i class="fa fa-user"> 关于</i></a><a href="/atom.xml"><i class="fa fa-rss"> 订阅</i></a></div><div id="search-form"><div id="result-mask" class="hide"></div><label><input id="search-key" type="text" autocomplete="off" placeholder="Arama"></label><div id="result-wrap" class="hide"><div id="search-result"></div></div><div class="hide"><template id="search-tpl"><div class="item"><a href="/{path}" title="{title}"><div class="title">{title}</div><div class="time">{date}</div><div class="tags">{tags}</div></a></div></template></div></div></div><div id="layout" class="layout-g"><div class="layout-l"><div class="content_container"><div class="post"><h1 class="post-title">异步操作和async函数</h1><div class="post-meta"><a href="/2018/03/22/异步操作和async函数/#comments" class="comment-count"></a><p><span class="date">Mar 22, 2018</span><span><a href="/categories/es6/" class="category">es6</a></span><span><i id="busuanzi_container_page_pv"><i id="busuanzi_value_page_pv"></i><i>点击</i></i></span></p></div><div class="post-content"><h3 id="异步编程"><a href="#异步编程" class="headerlink" title="异步编程"></a>异步编程</h3><p>1、异步</p>
+<pre><code>概念：一个任务被分成两段执行。
+
+实现方式：
+
+        1、回调函数
+
+        2、事件监听
+
+        3、发布/订阅
+
+        4、promise对象
+</code></pre><p>2、回调函数</p>
+<p>  概念：保存任务，便于之后的执行。</p>
+<p>  代码：<br>        fs.readFile(“/ect/passwd”,function(err,data){<br>          if(err){<br>             throw err;<br>          }<br>          console.log(data);<br>        });</p>
+<p>3、Generator函数</p>
+<p>  作用：暂停的地方都用yield,交出函数执行权。</p>
+<p>  代码：</p>
+<pre><code>function gen(x){
+   var y = yield x+2 ;
+   return y;
+}
+
+var g = gen(1);
+g.next(); //{value:3 ,done : false}
+g.next(); //{value:undefined,done:true}
+</code></pre><p>  分析：使用Generator函数会返回一个指针g.并调用next方法会返回一个对象，<br>        用来表示当前阶段的信息。<br>        value返回表达式的值,done表示是否执行完毕。</p>
+<p>  用法：</p>
+<pre><code>实例一:
+
+function * gen(x){
+  try{
+    var y = yield x+2;
+  }catch(e){
+    console.log(e);
+  }
+  return y;
+}
+
+//在该函数中也可以进行错误代码的处理。
+
+
+实例二：
+
+var fetch = require(&quot;node-fetch&quot;);
+function * gen(){
+    var url = &quot;http://&quot;,
+    var result = yield fetch(url);
+    console.log(result.bio);
+}
+
+var g =  gen();
+var result = g.next();
+
+result.value.then(function(data){
+    return data.json();
+}).then(function(data){
+    g.next(data);
+});
+
+//调用了一个远程的API，然后从json格式中去获取数据信息。
+</code></pre><p>4、Thunk函数</p>
+<p>  作用:解决何时进行参数的处理，保存参数整体替换的中间函数。</p>
+<p>  用法：</p>
+<pre><code>function g(m){
+    return  m * 2;
+}
+
+f(x+4);
+
+//此处如果应用thunk函数
+
+var  thunk = function(){
+  return x+4;
+}
+
+function f(thunk){
+  return thunk()*2;
+}
+</code></pre><p>5、Generator函数与Thunk函数结合使用</p>
+<p>  作用:实现Generator函数自动流程管理。</p>
+<p>  代码实例：</p>
+<pre><code>var fs = require(&quot;fs&quot;);
+var thunkify = require(&quot;thunkify&quot;);
+var readFile = thunkify(fs.readFile);
+
+var gen = function *(){
+  var f1 = yield  readFile(&quot;filePath&quot;);
+  console.log(f1.toString());
+  var f2 = yield  readFile(&quot;filePath&quot;);
+  console.log(f2.toString());
+}
+
+var g = gen();
+var r1 = g.next();
+r1.value.then(function(err,data){
+    if(err){
+          throw err;
+    }
+    var r2 =g.next(data);
+    r2.value.then(function(err,data){
+      if(err){
+          throw err;
+      } 
+      g.next(data);
+    });
+});
+
+//发现上述的代码都是基于value反复传入，借助Thunk函数实现自动流程管理。
+
+function run(fn){
+
+      //保存函数的参数
+      var gen = fn;
+      function next(err,data){
+          var  result = gen.next(data);
+          if(result.done){
+              return;
+          }
+          result.value(next);
+      }
+      next();
+}
+
+run(gen);
+</code></pre><p>6、co模块</p>
+<p>  作用:自动执行Generator函数。</p>
+<p>  实例：</p>
+<pre><code>var co = require(&quot;co&quot;);
+co(gen); //返回一个promise对象
+co(gen).then(function(){
+   console.log(&quot;函数执行完成!&quot;);
+}); 
+</code></pre><p> co源码: </p>
+<pre><code>function co(gen){
+    var ctx = this ;
+    return new Promise(function(resolve,reject){
+      if(tyoeof gen == &quot;function&quot;){
+            gen = gen.call(ctx);
+      }
+      if(!gen || typeof gen.next !==&quot;function&quot;){
+            return  resolve(gen);
+      }
+
+      //封装Generator函数中的next方法
+      onFulfilled();
+      function  onFulfilled(res){
+          var ret;
+          try{
+            ret = gen.next(res);
+          }catch(e){
+            return reject(e);
+          }
+          next(ret);
+      }
+
+      //反复调用自身的next方法
+
+      function next(ret){
+        if(ret.done){
+            return resolve(ret.value);
+        }
+        var value = toPromise.call(ctx,ret.value);
+        if(value &amp;&amp; isPromise(value)){
+            return value.then(onFulfilled,onRejected);                    
+        }else{
+           return onRejected(new TypeError)
+        }
+      }
+
+    });
+}
+</code></pre></div><div class="tags"><a href="/tags/es6精粹/">es6精粹</a></div><div class="post-share"><div class="bdsharebuttonbox"><span style="float:left;line-height: 28px;height: 28px;font-size:16px;font-weight:blod">分享到：</span><a href="#" data-cmd="more" class="bds_more"></a><a href="#" data-cmd="mshare" title="分享到一键分享" class="bds_mshare"></a><a href="#" data-cmd="fbook" title="分享到Facebook" class="bds_fbook"></a><a href="#" data-cmd="twi" title="分享到Twitter" class="bds_twi"></a><a href="#" data-cmd="linkedin" title="分享到linkedin" class="bds_linkedin"></a><a href="#" data-cmd="youdao" title="分享到有道云笔记" class="bds_youdao"></a><a href="#" data-cmd="evernotecn" title="分享到印象笔记" class="bds_evernotecn"></a><a href="#" data-cmd="weixin" title="分享到微信" class="bds_weixin"></a><a href="#" data-cmd="qzone" title="分享到QQ空间" class="bds_qzone"></a><a href="#" data-cmd="tsina" title="分享到新浪微博" class="bds_tsina"></a></div></div><div class="post-nav"><a href="/2018/03/23/async函数/" class="pre">async函数</a><a href="/2018/03/22/前端学习/" class="next">前端学习</a></div><div id="comments"></div></div></div></div><div class="layout-r"><div id="sidebar"><div class="search-pla"></div><div id="toc" class="widget"><div class="widget-title"><i class="fa fa-fei">文章目录</i></div><ol class="toc"><li class="toc-item toc-level-3"><a class="toc-link" href="#异步编程"><span class="toc-text">异步编程</span></a></li></ol></div><div class="widget"><div class="widget-title"><i class="fa fa-xie"> 最新文章</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/03/08/规范细节/">规范细节</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/01/初识AngularJS/">初识AngularJs</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/08/01/关于学习之法的学习/">关于学习方法的学习</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/08/Buffer/">Buffer</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/07/模块机制/">模块机制</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/06/构建WEB应用/">构建WEB应用</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/05/网络编程/">网络编程</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/异步编程/">异步编程</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/函数的扩展/">函数的扩展</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/07/04/构建VUE组件/">如何构建出色的VUE组件?</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-gui"> 分类</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Angular/">Angular</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Hexo博客折腾/">Hexo博客折腾</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/JS高级程序设计/">JS高级程序设计</a><span class="category-list-count">11</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Node/">Node</a><span class="category-list-count">9</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/es6/">es6</a><span class="category-list-count">10</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端学习/">前端学习</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端工程化工具/">前端工程化工具</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/前端框架/">前端框架</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/后端/">后端</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/数据展示图表库/">数据展示图表库</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/编写高质量代码/">编写高质量代码</a><span class="category-list-count">1</span></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-biao"> 标签</i></div><div class="tagcloud"><a href="/tags/Node-js/" style="font-size: 15px;">Node.js</a> <a href="/tags/数据处理/" style="font-size: 15px;">数据处理</a> <a href="/tags/JS-在路上/" style="font-size: 15px;">JS,在路上</a> <a href="/tags/es6精粹/" style="font-size: 15px;">es6精粹</a> <a href="/tags/Vue之行/" style="font-size: 15px;">Vue之行</a> <a href="/tags/开启博客之旅/" style="font-size: 15px;">开启博客之旅</a> <a href="/tags/前端学习/" style="font-size: 15px;">前端学习</a> <a href="/tags/AngularJS实战/" style="font-size: 15px;">AngularJS实战</a> <a href="/tags/web开发修炼之道/" style="font-size: 15px;">web开发修炼之道</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-archive"> 归档</i></div><ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2019/03/">三月 2019</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/10/">十月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/08/">八月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/07/">七月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/06/">六月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/04/">四月 2018</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2018/03/">三月 2018</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-you"> 友情链接</i></div><ul></ul><a href="http://www.example1.com/" title="site-name1" target="_blank">site-name1</a><ul></ul><a href="http://www.example2.com/" title="site-name2" target="_blank">site-name2</a><ul></ul><a href="http://www.example3.com/" title="site-name3" target="_blank">site-name3</a></div></div></div></div><a id="totop" href="#top"></a><div id="footer"><div class="footer-info"><p><a href="/baidusitemap.xml">Baidu Site Haritası</a> |  <a href="/atom.xml">订阅</a> |  <a href="/about/">关于</a></p><p>本站总访问量：<i id="busuanzi_container_site_pv"><i id="busuanzi_value_site_pv"></i></i>次</p><p><span> Copyright &copy;<a href="/." rel="nofollow">Daiyumeng.</a></span><span> Theme by<a rel="nofollow" target="_blank" href="https://github.com/chaooo/hexo-theme-BlueLake"> BlueLake.</a></span><span> Count by<a href="http://busuanzi.ibruce.info/"> busuanzi.</a></span><span> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a></span></p></div></div></div><script src="https://dn-lbstatics.qbox.me/busuanzi/2.3/busuanzi.pure.mini.js" async></script><script type="text/javascript" src="/js/search.json.js?v=2.0.1"></script><script type="text/javascript" src="/js/toctotop.js?v=2.0.1" async></script><script>window._bd_share_config={"common":{"bdSnsKey":{},"bdText":"","bdMini":"2","bdMiniList":["mshare","weixin","tsina","qzone","linkedin","fbook","twi","print","renren","sqq","evernotecn","bdysc","tqq","tqf","bdxc","kaixin001","tieba","douban","bdhome","thx","ibaidu","meilishuo","mogujie","diandian","huaban","duitang","hx","fx","youdao","sdo","qingbiji","people","xinhua","mail","isohu","yaolan","wealink","ty","iguba","h163","copy"],"bdPic":"","bdStyle":"1","bdSize":"16"},"share":{},"image":{"viewList":["tsina","qzone","weixin","fbook","twi","linkedin","youdao","evernotecn","mshare"],"viewText":"分享到：","viewSize":"16"},"selectShare":{"bdContainerClass":null,"bdSelectMiniList":["tsina","qzone","weixin","fbook","twi","linkedin","youdao","evernotecn","mshare"]}};with(document)0[(getElementsByTagName('head')[0]||head).appendChild(createElement('script')).src='http://bdimg.share.baidu.com/static/api/js/share.js?v=89860593.js?cdnversion='+~(-new Date()/36e5)];
+</script></body></html>
